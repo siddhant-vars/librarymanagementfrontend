@@ -6,66 +6,104 @@ function StudentDashboard({ user, onLogout }) {
   const [myBooks, setMyBooks] = useState([]);
   const [totalFine, setTotalFine] = useState(0);
   const [message, setMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // 🔹 Reusable fetch functions
-  const fetchAvailableBooks = async () => {
+  // 🔹 Fetch all data
+  const fetchAllData = async () => {
     try {
-      const res = await API.get('/student/available-books');
-      setAvailableBooks(res.data);
+      const [booksRes, myBooksRes, fineRes] = await Promise.all([
+        API.get('/student/available-books'),
+        API.get('/student/my-issued-books'),
+        API.get('/student/my-fine'),
+      ]);
+
+      setAvailableBooks(booksRes.data);
+      setMyBooks(myBooksRes.data);
+      setTotalFine(fineRes.data.totalFine);
     } catch (err) {
       console.error(err);
     }
   };
 
-  
+ useEffect(() => {
+  let isMounted = true;
+
+  const loadData = async () => {
+    try {
+      const [booksRes, myBooksRes, fineRes] = await Promise.all([
+        API.get('/student/available-books'),
+        API.get('/student/my-issued-books'),
+        API.get('/student/my-fine'),
+      ]);
+
+      if (isMounted) {
+        setAvailableBooks(booksRes.data);
+        setMyBooks(myBooksRes.data);
+        setTotalFine(fineRes.data.totalFine);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  loadData();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
+  // 🔹 Search books (API based)
   useEffect(() => {
-    let isMounted = true;
-
-    const loadData = async () => {
+    const delay = setTimeout(async () => {
       try {
-        const [booksRes, myBooksRes, fineRes] = await Promise.all([
-          API.get('/student/available-books'),
-          API.get('/student/my-issued-books'),
-          API.get('/student/my-fine'),
-        ]);
-
-        if (isMounted) {
-          setAvailableBooks(booksRes.data);
-          setMyBooks(myBooksRes.data);
-          setTotalFine(fineRes.data.totalFine);
-        }
+        const res = await API.get(`/student/search-books?q=${searchTerm}`);
+        setAvailableBooks(res.data);
       } catch (err) {
         console.error(err);
       }
-    };
+    }, 400); // debounce
 
-    loadData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    return () => clearTimeout(delay);
+  }, [searchTerm]);
 
   // 🔹 Request Book
   const requestBook = async (bookId) => {
     try {
       await API.post('/student/request-book', { bookId });
       setMessage('Book request submitted successfully');
-      fetchAvailableBooks(); // refresh list
+      fetchAllData();
+      setTimeout(() => setMessage(''), 3000);
     } catch (error) {
       setMessage(error.response?.data?.message || 'Error requesting book');
+    }
+  };
+
+  // 🔹 Return Book
+  const returnBook = async (issueId) => {
+    try {
+      const res = await API.post(`/student/return-book/${issueId}`);
+      setMessage(`Book returned. Fine: ₹${res.data.fine}`);
+      fetchAllData();
+      setTimeout(() => setMessage(''), 4000);
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Error returning book');
     }
   };
 
   return (
     <div className="container">
       <div className="dashboard">
+
         <div className="dashboard-header">
           <h2>Student Dashboard - Welcome {user.name}</h2>
           <button onClick={onLogout} className="btn logout-btn">Logout</button>
         </div>
 
-        {message && <div className="message success">{message}</div>}
+        {message && (
+          <div className={`message ${message.includes('Error') ? 'error' : 'success'}`}>
+            {message}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="stats-grid">
@@ -74,17 +112,23 @@ function StudentDashboard({ user, onLogout }) {
             <div className="number">₹{totalFine}</div>
           </div>
           <div className="stat-card">
-            <h3>Books Currently Issued</h3>
+            <h3>Books Issued</h3>
             <div className="number">{myBooks.length}</div>
           </div>
         </div>
 
-        {/* My Books */}
+        {/* 🔹 My Books (Return Added) */}
         <h3>Books Issued to You</h3>
         <div className="table-container">
           <table>
             <thead>
-              <tr><th>Book Title</th><th>Author</th><th>Issue Date</th><th>Due Date</th></tr>
+              <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Issue Date</th>
+                <th>Due Date</th>
+                <th>Action</th>
+              </tr>
             </thead>
             <tbody>
               {myBooks.map(b => (
@@ -93,18 +137,44 @@ function StudentDashboard({ user, onLogout }) {
                   <td>{b.bookId?.author}</td>
                   <td>{new Date(b.issueDate).toLocaleDateString()}</td>
                   <td>{new Date(b.dueDate).toLocaleDateString()}</td>
+                  <td>
+                    <button
+                      onClick={() => returnBook(b._id)}
+                      className="action-btn btn-return"
+                    >
+                      Return
+                    </button>
+                  </td>
                 </tr>
               ))}
+              {myBooks.length === 0 && (
+                <tr><td colSpan="5">No books issued</td></tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Available Books */}
+        {/* 🔹 Search */}
         <h3>Available Books</h3>
+        <input
+          type="text"
+          placeholder="Search by title or author..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
+        />
+
+        {/* 🔹 Available Books */}
         <div className="table-container">
           <table>
             <thead>
-              <tr><th>Title</th><th>Author</th><th>ISBN</th><th>Available Copies</th><th>Action</th></tr>
+              <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN</th>
+                <th>Copies</th>
+                <th>Action</th>
+              </tr>
             </thead>
             <tbody>
               {availableBooks.map(b => (
@@ -123,6 +193,9 @@ function StudentDashboard({ user, onLogout }) {
                   </td>
                 </tr>
               ))}
+              {availableBooks.length === 0 && (
+                <tr><td colSpan="5">No books found</td></tr>
+              )}
             </tbody>
           </table>
         </div>
