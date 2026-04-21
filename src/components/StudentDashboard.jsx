@@ -8,7 +8,6 @@ function StudentDashboard({ user, onLogout }) {
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 🔹 Fetch all data
   const fetchAllData = async () => {
     try {
       const [booksRes, myBooksRes, fineRes] = await Promise.all([
@@ -52,7 +51,7 @@ function StudentDashboard({ user, onLogout }) {
     isMounted = false;
   };
 }, []);
-  // 🔹 Search books (API based)
+
   useEffect(() => {
     const delay = setTimeout(async () => {
       try {
@@ -66,7 +65,6 @@ function StudentDashboard({ user, onLogout }) {
     return () => clearTimeout(delay);
   }, [searchTerm]);
 
-  // 🔹 Request Book
   const requestBook = async (bookId) => {
     try {
       await API.post('/student/request-book', { bookId });
@@ -78,7 +76,7 @@ function StudentDashboard({ user, onLogout }) {
     }
   };
 
-  // 🔹 Return Book
+
   const returnBook = async (issueId) => {
     try {
       const res = await API.post(`/student/return-book/${issueId}`);
@@ -117,7 +115,7 @@ function StudentDashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* 🔹 My Books (Return Added) */}
+        {/*  My Books (Return Added) */}
         <h3>Books Issued to You</h3>
         <div className="table-container">
           <table>
@@ -164,7 +162,7 @@ function StudentDashboard({ user, onLogout }) {
           style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
         />
 
-        {/* 🔹 Available Books */}
+        {/*  Available Books */}
         <div className="table-container">
           <table>
             <thead>

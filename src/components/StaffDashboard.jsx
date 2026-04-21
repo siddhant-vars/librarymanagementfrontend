@@ -9,7 +9,7 @@ function StaffDashboard({ user, onLogout }) {
   const [issueData, setIssueData] = useState({ enrollmentNo: '', bookId: '' });
   const [message, setMessage] = useState('');
 
-  // 🔹 Reusable fetch functions (for refresh after actions)
+
   const fetchBooks = async () => {
     try {
       const res = await API.get('/staff/books');
@@ -30,7 +30,6 @@ function StaffDashboard({ user, onLogout }) {
 
   
 
-  // 🔥 Correct useEffect
   useEffect(() => {
     let isMounted = true;
 
@@ -59,7 +58,6 @@ function StaffDashboard({ user, onLogout }) {
     };
   }, []);
 
-  // 🔹 Add Book
   const addBook = async (e) => {
     e.preventDefault();
     try {
@@ -72,19 +70,19 @@ function StaffDashboard({ user, onLogout }) {
     }
   };
 
-  // 🔹 Delete Book
   const deleteBook = async (id) => {
     if (window.confirm('Delete this book?')) {
       try {
         await API.delete(`/staff/delete-book/${id}`);
+        setMessage('Book deleted successfully');
         fetchBooks();
       } catch (err) {
         console.error(err);
+        setMessage(err.response?.data?.message || 'Error deleting book');
       }
     }
   };
 
-  // 🔥 Separate API logic for issuing book
   const issueBookAPI = async (data) => {
     try {
       await API.post('/staff/issue-book', data);
@@ -96,14 +94,13 @@ function StaffDashboard({ user, onLogout }) {
     }
   };
 
-  // 🔹 Form submit handler
   const issueBook = async (e) => {
     e.preventDefault();
     await issueBookAPI(issueData);
     setIssueData({ enrollmentNo: '', bookId: '' });
   };
 
-  // 🔹 Return Book
+
   const returnBook = async (issueId) => {
     try {
       const res = await API.post(`/staff/return-book/${issueId}`);
